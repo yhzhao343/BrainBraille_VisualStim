@@ -1,0 +1,24 @@
+{
+  "name": "brainbraille_visualstim",
+  "version": "1.0.0",
+  "description": "Visual stimuli presentation code for BrainBrialle experiments",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node build.js src/index.ts --bundle --sourcemap --define='IS_PRODUCTION=false' --servedir=src --watch"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yhzhao343/BrainBraille_VisualStim.git"
+  },
+  "author": "Yuhui Zhao",
+  "license": "CC0-1.0",
+  "bugs": {
+    "url": "https://github.com/yhzhao343/BrainBraille_VisualStim/issues"
+  },
+  "homepage": "https://github.com/yhzhao343/BrainBraille_VisualStim#readme",
+  "dependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
