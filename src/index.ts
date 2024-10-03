@@ -1,7 +1,11 @@
 import {dot_colors, gen_color_defs} from './configs_and_consts'  
 
-function draw_background() {
-  // var brainbraille_div = document.createElement("div");
+function draw_background(parentElement?:HTMLElement) {
+  var brainbraille_div = document.createElement("div");
+  if (typeof parentElement === "undefined"){
+    parentElement = document.body
+  }
+  parentElement.appendChild(brainbraille_div)
   // brainbraille_div.className = "brainbraille-div";
 
   // const curr_stim_svg = document.getElementById("curr-stim-svg")
@@ -12,10 +16,11 @@ function draw_background() {
 
   // curr_stim_svg.appendChild(body_svg_text)
   // .appendChild(svgDiv);
-  console.log(gen_color_defs(dot_colors, 'curr_letter'))
+  // console.log(gen_color_defs(dot_colors, 'curr_letter'))
 }
 
 draw_background();
+
 /******************************************************************************
  * esbuild live-reload                                                        *
  ******************************************************************************/
