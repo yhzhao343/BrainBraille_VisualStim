@@ -1,25 +1,62 @@
-import {dot_colors, gen_color_defs} from './configs_and_consts'  
+import {
+  prepBrainBrailleStim,
+  BrainBrailleStim,
+  generateTaskUpdateSequence,
+  shuffle,
+  STIM_PHASE_SET,
+  BB_3s,
+  BB_1s5,
+  run_rask,
+  prepControlPanel,
+  getDefaultStartConfig,
+} from './configs_and_consts'
 
-function draw_background(parentElement?:HTMLElement) {
-  var brainbraille_div = document.createElement("div");
-  if (typeof parentElement === "undefined"){
-    parentElement = document.body
+import {
+  StartConfig
+} from './interfaces'
+
+// const brainbraille_stim: BrainBrailleStim = prepBrainBrailleStim();
+// const stim_sequence = shuffle(STIM_PHASE_SET);
+// const task_info = generateTaskUpdateSequence(stim_sequence, BB_3s);
+// run_rask(stim_sequence, task_info, brainbraille_stim);
+const params: URLSearchParams = new URLSearchParams(window.location.search);
+// console.log(params)
+let start_config: StartConfig = getDefaultStartConfig();
+if (params.size === 3) {
+  switch (params.get("mode")) {
+    case "Practice":
+      start_config.mode = "Practice"
+      break;
+    case "Study":
+      start_config.mode = "Study"
+      break;
+    default:
   }
-  parentElement.appendChild(brainbraille_div)
-  // brainbraille_div.className = "brainbraille-div";
 
-  // const curr_stim_svg = document.getElementById("curr-stim-svg")
-  // console.log(curr_stim_svg)
-  // curr_stim_svg.insertAdjacentHTML('beforeend', body_svg_text)
-  // const body_svg = curr_stim_svg.getElementsByTagName("g")[0]
-  // console.log(body_svg)
+  switch (params.get("interval")) {
+    case "3s":
+      start_config.interval = "3s"
+      break;
+    case "1.5s":
+      start_config.interval = "1.5s"
+      break;
+    default:
+  }
 
-  // curr_stim_svg.appendChild(body_svg_text)
-  // .appendChild(svgDiv);
-  // console.log(gen_color_defs(dot_colors, 'curr_letter'))
+  switch (params.get("TR")) {
+    case "750ms":
+      start_config.TR = "750ms"
+      break;
+    case "500ms":
+      start_config.TR = "500ms"
+      break;
+    case "n/a":
+      start_config.TR = "N.A."
+    default:
+  }
 }
 
-draw_background();
+prepControlPanel(start_config);
 
 /******************************************************************************
  * esbuild live-reload                                                        *
