@@ -5,7 +5,10 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node build.js src/index.ts --bundle --sourcemap --define='IS_PRODUCTION=false' --servedir=src --watch"
+    "dev": "node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=false' --servedir=src --watch --log-level=info",
+    "dist": "cp -r src/assets dist/assets && cp src/index.html dist/ && cp src/style.css dist/ && node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=true' --outfile=dist/index.js --minify --tree-shaking --log-level=silent",
+    "clean": "rm -r dist && mkdir dist",
+    "serve": "npx http-server dist"
   },
   "type": "module",
   "repository": {

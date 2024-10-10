@@ -7,7 +7,7 @@ const args = process.argv.splice(3)
 const options = {
   'servedir': {
     type: 'string',
-    default: 'src'
+    default: ''
   },
   'watch': {
     type: 'boolean',
@@ -17,8 +17,8 @@ const options = {
     type: 'string'
   },
   'tree-shaking': {
-    type: 'string',
-    default: 'false'
+    type: 'boolean',
+    default: false
   },
   'bundle': {
     type: 'boolean',
@@ -43,13 +43,14 @@ const options = {
 }
 
 const { values, positionals } = parseArgs({ args, options });
+
 if ('' == values.outfile) {
-  values.outfile = `${entry.substr(0, entry.length-2)}js`
+  values.outfile = `${entry.substr(0, entry.length - 2)}js`
 }
 
 let esbuild_context_config = {
   'entryPoints': [entry],
-  'treeShaking': values['tree-shaking'] == 'true',
+  'treeShaking': values['tree-shaking'],
   'logLevel': values['log-level'],
   'bundle': values['bundle'],
   'minify': values['minify'],
@@ -61,40 +62,46 @@ if ('define' in values) {
   if (values['define']) {
     const define_string = values['define']
     const splited_string = define_string.split('=')
-    if (splited_string[0] === 'IS_PRODUCTION') {
+    if (splited_string[0] === 'window.IS_PRODUCTION') {
       esbuild_context_config['define'] = {
-        'IS_PRODUCTION': splited_string[1]
+        'window.IS_PRODUCTION': splited_string[1]
       }
     }
   }
 }
 console.log(esbuild_context_config)
 let ctx = await esbuild.context(esbuild_context_config)
+// console.log(ctx)
 
 if (values['watch']) {
   await ctx.watch()
 }
 
-let { host, port } = await ctx.serve({
-  'servedir': values['servedir']
-})
-const PROXY_PORT = 3000;
-const server = http.createServer((req, res) => {
-  const options = {
-    hostname: host,
-    port: port,
-    path: req.url,
-    method: req.method,
-    headers: req.headers,
-  }
-  const proxyReq = http.request(options, proxyRes => {
-    proxyRes.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
-    proxyRes.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
-    res.writeHead(proxyRes.statusCode, proxyRes.headers)
-    proxyRes.pipe(res, { end: true })
+if (values['servedir']) {
+  let { host, port } = await ctx.serve({
+    'servedir': values['servedir']
   })
-  req.pipe(proxyReq, { end: true })
-})
+  const PROXY_PORT = 3000;
+  const server = http.createServer((req, res) => {
+    const options = {
+      hostname: host,
+      port: port,
+      path: req.url,
+      method: req.method,
+      headers: req.headers,
+    }
+    const proxyReq = http.request(options, proxyRes => {
+      proxyRes.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+      proxyRes.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+      res.writeHead(proxyRes.statusCode, proxyRes.headers)
+      proxyRes.pipe(res, { end: true })
+    })
+    req.pipe(proxyReq, { end: true })
+  })
 
-server.listen(PROXY_PORT);
-console.log(` > cross-origin isolated serving at http://127.0.0.1:${PROXY_PORT}/\n=== Use port ${PROXY_PORT} for higher performance.now() time accuracy ===`);
+  server.listen(PROXY_PORT);
+  console.log(` > cross-origin isolated serving at http://127.0.0.1:${PROXY_PORT}/\n=== Use port ${PROXY_PORT} for higher performance.now() time accuracy ===`);
+} else {
+  ctx.rebuild();
+  process.exit();
+}

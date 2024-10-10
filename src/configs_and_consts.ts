@@ -12,10 +12,6 @@ import {
   PRIMARY_COLOR,
   PRIMARY_VARIANT_1_COLOR,
   PRIMARY_VARIANT_2_COLOR,
-  SECONDARY_COLOR,
-  SECONDARY_VARIANT_1_COLOR,
-  SECONDARY_VARIANT_2_COLOR,
-  ERROR_COLOR,
 } from "./color_scheme"
 
 
@@ -383,6 +379,47 @@ export class BrainBrailleStim {
   }
 }
 
+export function start_config_from_url() {
+  const params: URLSearchParams = new URLSearchParams(window.location.search);
+  const start_config: StartConfig = getDefaultStartConfig();
+  switch (params.get("mode")) {
+    case "Practice":
+      start_config.mode = "Practice"
+      break;
+    case "Study":
+      start_config.mode = "Study"
+      break;
+    default:
+  }
+
+  switch (params.get("interval")) {
+    case "3s":
+      start_config.interval = "3s"
+      break;
+    case "1.5s":
+      start_config.interval = "1.5s"
+      break;
+    default:
+  }
+
+  switch (params.get("TR")) {
+    case "750ms":
+      start_config.TR = "750ms"
+      break;
+    case "500ms":
+      start_config.TR = "500ms"
+      break;
+    case "n/a":
+      start_config.TR = "N.A."
+    default:
+  }
+  let params_start_delay_s = params.get("start_delay_s")
+  if (params_start_delay_s) {
+    start_config.start_delay_s = parseFloat(params_start_delay_s)
+  }
+  return start_config;
+}
+
 
 export function genColorDefs(colors: string[], id_prefix: string, stop_opacity: number = 1, stop_offset: number = 0.2) {
   const color_def_str_arr = ['<defs>'];
@@ -656,67 +693,6 @@ export async function run_practice(stim_sequence: string[][], task_info: TaskInf
 
   return my_promise
 }
-
-
-// export async function run_task(
-//   stim_sequence: string[][], task_info: TaskInfo,
-//   brainbraille_stim: BrainBrailleStim) {
-//   const task_len = task_info.curr_l_list.length
-//   let exit = false;
-//   let timeout_id: number;
-//   let my_resolve: Function;
-//   const on_key_down = (event) => {
-//     console.log(event)
-//     if (event.keyCode === 27) {
-//       console.log("escape")
-//       clearTimeout(timeout_id)
-//       exit = true;
-//       if (my_resolve) {
-//         my_resolve();
-//       }
-//     }
-//   }
-//   document.addEventListener("keydown", on_key_down)
-//   let task_queue: Promise<any> = Promise.resolve();
-//   for (let i = 0; i < task_len; i++) {
-//     const curr_l = task_info.curr_l_list[i];
-//     const word_info = task_info.curr_word_text_list[i]
-//     let curr_word_text: string;
-//     if (word_info.phrase_n > -1) {
-//       curr_word_text = stim_sequence[word_info.phrase_n][word_info.word_n]
-//     } else {
-//       curr_word_text = ''
-//     }
-//     const next_l = task_info.next_l_list[i];
-//     const curr_l_in_word_ind = task_info.curr_l_in_word_ind_list[i];
-
-//     function new_task() {
-//       return new Promise((resolve, reject) => {
-//         if (!exit) {
-//           try {
-//             my_resolve = resolve;
-//             timeout_id = setTimeout(() => {
-//               if (!exit) {
-//                 brainbraille_stim.update(curr_l, next_l, curr_word_text, curr_l_in_word_ind);
-//               }
-//               resolve(null)
-//             }, task_info.expected_task_interval_s * 1000)
-//           } catch (e) {
-//             reject(e);
-//           }
-//         } else {
-//           resolve(null);
-//         }
-//       })
-//     }
-
-//     task_queue = task_queue.then(new_task)
-//   }
-//   task_queue.then(() => {
-//     document.removeEventListener("keydown", on_key_down);
-//   })
-//   await task_queue;
-// }
 
 function validate_start_config(start_config: StartConfig) {
   if (start_config.mode === "Practice") {
