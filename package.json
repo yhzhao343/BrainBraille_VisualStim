@@ -6,9 +6,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=false' --servedir=src --watch --log-level=info",
-    "dist": "cp -r src/assets dist/assets && cp src/index.html dist/ && cp src/style.css dist/ && node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=true' --outfile=dist/index.js --minify --tree-shaking --log-level=silent",
-    "clean": "rm -r dist && mkdir dist",
-    "serve": "npx http-server dist"
+    "build": "cp -r src/assets build/assets && cp src/index.html build/ && cp src/style.css build/ && node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=true' --outfile=build/index.js --minify --tree-shaking --log-level=silent",
+    "clean": "rm -r build && mkdir build",
+    "serve": "npx http-server build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "type": "module",
   "repository": {
@@ -20,8 +22,9 @@
   "bugs": {
     "url": "https://github.com/yhzhao343/BrainBraille_VisualStim/issues"
   },
-  "homepage": "https://github.com/yhzhao343/BrainBraille_VisualStim#readme",
-  "dependencies": {
-    "esbuild": "^0.24.0"
+  "homepage": "http://yhzhao343.github.io/brainbraille_visualstim",
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "gh-pages": "^6.1.1"
   }
 }

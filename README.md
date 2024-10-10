@@ -17,11 +17,11 @@ Develop the code with realtime file watching and reloading:
 ```
 npm run dev
 ```
-Build the webpage to `/dist` folder:
+Build the webpage to `/build` folder:
 ```
-npm run dist
+npm run build
 ```
-Clean the `/dist` folder:
+Clean the `/build` folder:
 ```
 npm run clean
 ```
