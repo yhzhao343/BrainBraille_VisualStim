@@ -4,6 +4,9 @@ Visual stimuli presentation code for BrainBrialle experiments.
 ## Installing dependencies
 Install the latest node LTS version first. I recommend using the [Node Version manager (NVM)](https://github.com/nvm-sh/nvm) for linux and Macos, or [nvm-windows](https://github.com/coreybutler/nvm-windows) for windows. Alternatively, you can also install it from the [official node.js](https://nodejs.org/en/download/package-manager).
 
+## Visit the BrainBraille Stim presentation page to play with it!
+[https://yhzhao343.github.io/BrainBraille_VisualStim/](https://yhzhao343.github.io/BrainBraille_VisualStim/)
+
 ## Development setup
 clone this repo:
 ```
