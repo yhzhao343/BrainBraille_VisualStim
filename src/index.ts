@@ -1,8 +1,4 @@
-import {
-  prepControlPanel,
-  start_config_from_url,
-} from './configs_and_consts'
-
+import { prepControlPanel, start_config_from_url } from "./configs_and_consts";
 
 prepControlPanel(start_config_from_url());
 
@@ -11,9 +7,9 @@ prepControlPanel(start_config_from_url());
  ******************************************************************************/
 function location_reload() {
   location.reload();
-  console.log('Page reloaded');
+  console.log("Page reloaded");
 }
 if (!(window as any).IS_PRODUCTION) {
-  console.log("IS NOT PRODUCTION")
-  new EventSource('/esbuild').addEventListener('change', location_reload);
+  console.log("IS NOT PRODUCTION");
+  new EventSource("/esbuild").addEventListener("change", location_reload);
 }

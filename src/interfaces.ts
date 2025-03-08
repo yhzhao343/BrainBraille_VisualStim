@@ -3,6 +3,7 @@ export interface StartConfig {
   interval: "3s" | "1.5s";
   TR: "750ms" | "500ms" | "N.A.";
   start_delay_s: number;
+  URSI: string;
 }
 
 export interface SVGObjStyle {
@@ -43,36 +44,36 @@ export interface TaskInfo {
 }
 
 export interface BBDictionary {
-  'space': number[];
-  'a': number[];
-  'b': number[];
-  'c': number[];
-  'd': number[];
-  'e': number[];
+  space: number[];
+  a: number[];
+  b: number[];
+  c: number[];
+  d: number[];
+  e: number[];
 
-  'f': number[];
-  'g': number[];
-  'h': number[];
-  'i': number[];
-  'j': number[];
+  f: number[];
+  g: number[];
+  h: number[];
+  i: number[];
+  j: number[];
 
-  'k': number[];
-  'l': number[];
-  'm': number[];
-  'n': number[];
-  'o': number[];
+  k: number[];
+  l: number[];
+  m: number[];
+  n: number[];
+  o: number[];
 
-  'p': number[];
-  'q': number[];
-  'r': number[];
-  's': number[];
-  't': number[];
+  p: number[];
+  q: number[];
+  r: number[];
+  s: number[];
+  t: number[];
 
-  'u': number[];
-  'v': number[];
-  'w': number[];
-  'x': number[];
-  'y': number[];
+  u: number[];
+  v: number[];
+  w: number[];
+  x: number[];
+  y: number[];
 
-  'z': number[];
+  z: number[];
 }
