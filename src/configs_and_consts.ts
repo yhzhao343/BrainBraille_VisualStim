@@ -1245,10 +1245,10 @@ export function prepControlPanel(
           start_config.mode = event.target.value;
           onModeChange();
         }
+        validate_start_config(start_config);
+        updateSearchURL(start_config);
       }
     }
-    validate_start_config(start_config);
-    updateSearchURL(start_config);
   });
 
   select_interval.addEventListener("change", (event: Event) => {
@@ -1256,11 +1256,11 @@ export function prepControlPanel(
       if ("value" in event.target) {
         if (event.target.value === "3s" || event.target.value === "1.5s") {
           start_config.interval = event.target.value;
+          validate_start_config(start_config);
+          updateSearchURL(start_config);
         }
       }
     }
-    validate_start_config(start_config);
-    updateSearchURL(start_config);
   });
 
   select_TR.addEventListener("change", (event: Event) => {
@@ -1268,12 +1268,23 @@ export function prepControlPanel(
       if ("value" in event.target) {
         if (event.target.value === "500ms" || event.target.value === "750ms") {
           start_config.TR = event.target.value;
+          validate_start_config(start_config);
+          updateSearchURL(start_config);
         }
       }
     }
-    validate_start_config(start_config);
-    updateSearchURL(start_config);
   });
+
+  ursi_in.addEventListener("change", (event: Event) => {
+    if (event.type === "change") {
+      start_config.URSI = ursi_in.value ?? "";
+      validate_start_config(start_config);
+      updateSearchURL(start_config);
+    }
+  });
+  ursi_input_form.onsubmit = (event: SubmitEvent) => {
+    event.preventDefault();
+  };
 
   function input_delay_s_update(event: Event) {
     if (event.target) {
