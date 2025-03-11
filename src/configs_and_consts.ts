@@ -6,6 +6,9 @@ import {
   SVGObjStyle,
   TaskInfo,
   XYCoord,
+  BBStatusBits,
+  BBMode,
+  BBTIntType,
 } from "./interfaces";
 
 import {
@@ -13,6 +16,62 @@ import {
   PRIMARY_VARIANT_1_COLOR,
   PRIMARY_VARIANT_2_COLOR,
 } from "./color_scheme";
+
+import { WS_URL } from "./config";
+
+function now() {
+  return performance.timeOrigin + performance.now();
+}
+const MAX_RECONNECT = 5;
+let socket: WebSocket | undefined;
+let reconnect_count = 0;
+let reconnect_timeout: number;
+
+function ws_connect() {
+  const params: URLSearchParams = new URLSearchParams(window.location.search);
+  const ursi = params.get("URSI");
+  const tok = params.get("tok");
+  let URL_URSI_list = [`${WS_URL}`];
+  if (ursi || tok) {
+    URL_URSI_list.push("?");
+    if (ursi) {
+      URL_URSI_list.push(`URSI=${ursi}`);
+      if (tok) {
+        URL_URSI_list.push("&");
+      }
+    }
+    if (tok) {
+      URL_URSI_list.push(`tok=${tok}`);
+    }
+  }
+  const URL_URSI = URL_URSI_list.join("");
+
+  socket = new WebSocket(URL_URSI);
+
+  socket.addEventListener("open", (event) => {
+    console.log(`ws to ${WS_URL} connected!`);
+    reconnect_count = 0;
+  });
+
+  socket.addEventListener("close", (event) => {
+    console.log(
+      `ws to ${WS_URL} disconnected! ${reconnect_count}/${MAX_RECONNECT}`,
+    );
+    if (reconnect_count < MAX_RECONNECT) {
+      reconnect_timeout = setTimeout(ws_connect, 2000);
+    }
+  });
+
+  socket.onerror = (err) => {
+    reconnect_count++;
+    // console.log(err);
+  };
+
+  socket.addEventListener("message", (event) => {
+    console.log(event);
+  });
+}
+setTimeout(ws_connect, 0);
 
 export function openFullscreen() {
   let elem = document.documentElement;
@@ -41,7 +100,7 @@ export function closeFullscreen() {
 
 export function getDefaultStartConfig(): StartConfig {
   return {
-    mode: "Study",
+    mode: "Practice",
     interval: "3s",
     TR: "750ms",
     start_delay_s: 5,
@@ -119,6 +178,17 @@ export function obj_to_style_str(obj: Object) {
     str_list.push(`${key}:${value};`);
   }
   return str_list.join("");
+}
+
+function task_info_2_badusb(task_info) {
+  const num_ts = Math.round(
+    (task_info.curr_l_list.length * task_info.expected_task_interval_s) /
+      task_info.expected_TR_s,
+  );
+  let bad_usb_script =
+    `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 1000)}\n` +
+    `STRING t\nREPEAT ${num_ts}\n`;
+  console.log(bad_usb_script);
 }
 
 export function generateTaskUpdateSequence(
@@ -449,9 +519,14 @@ export function start_config_from_url() {
     start_config.start_delay_s = parseFloat(params_start_delay_s);
   }
 
-  let URSI = params.get("URSI");
+  const URSI = params.get("URSI");
   if (URSI) {
     start_config.URSI = URSI;
+  }
+
+  const tok = params.get("tok");
+  if (tok) {
+    start_config.tok = tok;
   }
   return start_config;
 }
@@ -707,12 +782,48 @@ export function delay(time_ms: number, callback: Function | null = null) {
   });
 }
 
+// 64bit double timestamp | uint16 curr_l | uint16 index | uint16 status | uint16 fmri_frame_i
+//           0                    0               1                2                3
+const update_info_payload = new ArrayBuffer(8 + 2 * 4);
+const ts_view = new Float64Array(update_info_payload, 0, 1);
+const info_view = new Int16Array(update_info_payload, 8, 4);
+
+function send_event(
+  curr_l = 0,
+  index = 0,
+  isStudy: BBMode = BBMode.Study,
+  event:
+    | BBStatusBits.Start
+    | BBStatusBits.End
+    | BBStatusBits.Exit
+    | BBStatusBits.Update = BBStatusBits.Update,
+  fmri_frame_i = 0,
+  update_time = false,
+  task_interval: BBTIntType = BBTIntType.TR_3s,
+  task_len = 0,
+) {
+  if (!socket?.CLOSED) {
+    if (update_time) {
+      ts_view[0] = now();
+    }
+    info_view[0] = curr_l;
+    info_view[1] = index;
+    info_view[2] =
+      (isStudy << BBStatusBits.Study) |
+      (1 << event) |
+      (task_len << BBStatusBits.TLen) |
+      (task_interval << BBStatusBits.TInt);
+    info_view[3] = fmri_frame_i;
+    socket?.send(update_info_payload);
+  }
+}
+
 export async function run_study(
   stim_sequence: string[][],
   task_info: TaskInfo,
   brainbraille_stim: BrainBrailleStim,
 ) {
-  console.log("run_study called");
+  ts_view[0] = now();
   const task_len = task_info.curr_l_list.length;
   let i = 0;
   let my_resolve: Function;
@@ -720,11 +831,33 @@ export async function run_study(
     my_resolve = resolve;
   });
   //Add canceling mechanism
+  const curr_url_search_string = window.location.search;
+  const url_params: URLSearchParams = new URLSearchParams(
+    curr_url_search_string,
+  );
+  const mode =
+    url_params.get("mode") === "Study" ? BBMode.Study : BBMode.Practice;
+  const interval =
+    url_params.get("interval") === "3s" ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
+  send_event(0, 0, mode, BBStatusBits.Start, 0, false, interval, task_len);
+  let curr_l_char: number = 0;
 
   const on_key_down = (event: KeyboardEvent) => {
+    ts_view[0] = now();
     if (event.key === "Escape") {
       document.removeEventListener("keydown", on_key_down);
+      document.removeEventListener("keypress", on_key_press);
       my_resolve();
+      send_event(
+        curr_l_char,
+        i,
+        mode,
+        BBStatusBits.Exit,
+        0,
+        true,
+        interval,
+        task_len,
+      );
     }
   };
   document.addEventListener("keydown", on_key_down);
@@ -734,9 +867,13 @@ export async function run_study(
   let frame_per_stim_i = 0;
 
   document.addEventListener("keypress", on_key_press);
+
   function update() {
+    ts_view[0] = now();
     if (i < task_len) {
       const curr_l = task_info.curr_l_list[i];
+      curr_l_char =
+        curr_l === "space" ? " ".charCodeAt(0) : curr_l.charCodeAt(0);
       const word_info = task_info.curr_word_text_list[i];
       let curr_word_text: string;
       if (word_info.phrase_n > -1) {
@@ -753,24 +890,52 @@ export async function run_study(
         curr_l_in_word_ind,
         `${i + 1}/${task_len}`,
       );
+      console.log(`${i}:${curr_l}`);
+      send_event(
+        curr_l_char,
+        i,
+        mode,
+        BBStatusBits.Update,
+        0,
+        false,
+        interval,
+        task_len,
+      );
       i++;
     } else {
       document.removeEventListener("keydown", on_key_down);
       document.removeEventListener("keypress", on_key_press);
       my_resolve();
+      send_event(0, i, mode, BBStatusBits.End, 0, false, interval, task_len);
     }
   }
 
   function on_key_press(event: KeyboardEvent) {
     if (event.key === "t") {
-      frame_per_stim_i++;
-      if (frame_per_stim_i === num_frames_per_stim) {
+      if (frame_per_stim_i === 0) {
         update();
-        frame_per_stim_i = 0;
+        frame_per_stim_i++;
+      } else {
+        ts_view[0] = now();
+        send_event(
+          curr_l_char,
+          i,
+          mode,
+          BBStatusBits.Update,
+          frame_per_stim_i,
+          false,
+          interval,
+          task_len,
+        );
+        frame_per_stim_i++;
+        if (frame_per_stim_i === num_frames_per_stim) {
+          frame_per_stim_i = 0;
+        }
       }
     }
   }
   update();
+  frame_per_stim_i++;
   return my_promise;
 }
 
@@ -779,6 +944,7 @@ export async function run_practice(
   task_info: TaskInfo,
   brainbraille_stim: BrainBrailleStim,
 ) {
+  ts_view[0] = now();
   const task_len = task_info.curr_l_list.length;
   let i = 0;
   let interval_id: number;
@@ -786,20 +952,44 @@ export async function run_practice(
   let my_promise = new Promise((resolve) => {
     my_resolve = resolve;
   });
-
+  const curr_url_search_string = window.location.search;
+  const url_params: URLSearchParams = new URLSearchParams(
+    curr_url_search_string,
+  );
+  const mode =
+    url_params.get("mode") === "Study" ? BBMode.Study : BBMode.Practice;
+  const interval =
+    url_params.get("interval") === "3s" ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
+  console.log(url_params);
+  send_event(0, 0, mode, BBStatusBits.Start, 0, false, interval, task_len);
   //Add canceling mechanism
   const on_key_down = (event: KeyboardEvent) => {
+    ts_view[0] = now();
     if (event.key === "Escape") {
       clearInterval(interval_id);
       document.removeEventListener("keydown", on_key_down);
       my_resolve();
+      const curr_l_char = task_info.curr_l_list[i].charCodeAt(0);
+      send_event(
+        curr_l_char,
+        i,
+        mode,
+        BBStatusBits.Exit,
+        0,
+        true,
+        interval,
+        task_len,
+      );
     }
   };
   document.addEventListener("keydown", on_key_down);
-
   function update() {
+    ts_view[0] = now();
+    let curr_l_char: number = 0;
     if (i < task_len) {
       const curr_l = task_info.curr_l_list[i];
+      curr_l_char =
+        curr_l === "space" ? " ".charCodeAt(0) : curr_l.charCodeAt(0);
       const word_info = task_info.curr_word_text_list[i];
       let curr_word_text: string;
       if (word_info.phrase_n > -1) {
@@ -816,15 +1006,33 @@ export async function run_practice(
         curr_l_in_word_ind,
         `${i + 1}/${task_len}`,
       );
+      console.log(`${i}:${curr_l}`);
+      send_event(
+        curr_l_char,
+        i,
+        mode,
+        BBStatusBits.Update,
+        0,
+        false,
+        interval,
+        task_len,
+      );
       i++;
-      // if (i === task_len) {
-
-      // }
     } else {
       if (interval_id) {
         clearInterval(interval_id);
         document.removeEventListener("keydown", on_key_down);
         my_resolve();
+        send_event(
+          curr_l_char,
+          i,
+          mode,
+          BBStatusBits.End,
+          0,
+          false,
+          interval,
+          task_len,
+        );
       }
     }
   }
@@ -1057,6 +1265,18 @@ export function prepControlPanel(
   input_delay_s_form.appendChild(input_delay_s);
   bb_control_panel_div.appendChild(input_delay_s_form);
 
+  function ui_disable(disable: boolean, isStudy: boolean) {
+    ursi_in.disabled = disable;
+    select_mode.disabled = disable;
+    select_interval.disabled = disable;
+    if (isStudy) {
+      select_TR.disabled = disable;
+    } else {
+      input_delay_s.disabled = disable;
+    }
+    //
+  }
+
   // Change options for other input based on mode
   function onModeChange() {
     if (start_config.mode == "Practice") {
@@ -1134,6 +1354,7 @@ export function prepControlPanel(
   bb_control_panel_div.appendChild(start_button);
 
   start_button.addEventListener("click", async () => {
+    clearInterval(reconnect_timeout);
     start_button.disabled = true;
     start_button.style.backgroundColor = PRIMARY_VARIANT_2_COLOR;
     openFullscreen();
@@ -1146,7 +1367,31 @@ export function prepControlPanel(
     const delay_promise = new Promise((resolve) => {
       my_resolve = resolve;
     });
-    if (start_config.mode === "Practice") {
+    const stim_sequence = shuffle(STIM_PHASE_SET);
+
+    const default_stim_setting: StimTaskIntSetting =
+      start_config.interval === "3s" ? BB_3s : BB_1s5;
+    const task_stim_setting: StimTaskIntSetting = {
+      expected_task_interval_s: parseFloat(
+        start_config.interval.substring(0, start_config.interval.length - 1),
+      ),
+      expected_TR_s:
+        parseFloat(start_config.TR.substring(0, start_config.TR.length - 2)) /
+        1000,
+      front_space_padding_s: default_stim_setting.front_space_padding_s,
+      back_space_padding_s: default_stim_setting.back_space_padding_s,
+      num_space_between_words: default_stim_setting.num_space_between_words,
+      num_space_between_sents: default_stim_setting.num_space_between_sents,
+    };
+    const task_info = generateTaskUpdateSequence(
+      stim_sequence,
+      task_stim_setting,
+    );
+    const is_study = start_config.mode === "Study";
+    const is_practice = start_config.mode === "Practice";
+    ui_disable(true, is_study);
+
+    if (is_practice) {
       if (start_config.start_delay_s >= 0 && start_config.start_delay_s <= 30) {
         info_panel.innerHTML = start_config.start_delay_s.toString();
         let curr_count_down_num: number = start_config.start_delay_s;
@@ -1169,12 +1414,14 @@ export function prepControlPanel(
             clearInterval(interval_id);
             document.removeEventListener("keydown", on_key_down);
             no_abort = false;
+            ui_disable(false, is_study);
             my_resolve();
           }
         }
       }
       await delay_promise;
-    } else if (start_config.mode === "Study") {
+    } else if (is_study) {
+      task_info_2_badusb(task_info);
       info_panel.innerHTML = "Waiting for fMRI to start!";
       document.addEventListener("keypress", on_key_press);
       document.addEventListener("keydown", on_key_down);
@@ -1191,6 +1438,7 @@ export function prepControlPanel(
           document.removeEventListener("keypress", on_key_press);
           document.removeEventListener("keydown", on_key_down);
           no_abort = false;
+          ui_disable(false, is_study);
           my_resolve();
         }
       }
@@ -1202,37 +1450,17 @@ export function prepControlPanel(
     if (no_abort) {
       parentElement.removeChild(bb_control_panel_div);
       const brainbraille_stim = prepBrainBrailleStim(parentElement);
-      const stim_sequence = shuffle(STIM_PHASE_SET);
-
-      const default_stim_setting: StimTaskIntSetting =
-        start_config.interval === "3s" ? BB_3s : BB_1s5;
-      const task_stim_setting: StimTaskIntSetting = {
-        expected_task_interval_s: parseFloat(
-          start_config.interval.substring(0, start_config.interval.length - 1),
-        ),
-        expected_TR_s:
-          parseFloat(start_config.TR.substring(0, start_config.TR.length - 2)) /
-          1000,
-        front_space_padding_s: default_stim_setting.front_space_padding_s,
-        back_space_padding_s: default_stim_setting.back_space_padding_s,
-        num_space_between_words: default_stim_setting.num_space_between_words,
-        num_space_between_sents: default_stim_setting.num_space_between_sents,
-      };
-      const task_info = generateTaskUpdateSequence(
-        stim_sequence,
-        task_stim_setting,
-      );
-      if (start_config.mode === "Practice") {
+      if (is_practice) {
         await run_practice(stim_sequence, task_info, brainbraille_stim);
-      } else if (start_config.mode === "Study") {
+      } else if (is_study) {
         await run_study(stim_sequence, task_info, brainbraille_stim);
       }
       parentElement.removeChild(brainbraille_stim.container_div);
       parentElement.appendChild(bb_control_panel_div);
     }
     start_button.disabled = false;
+    ui_disable(false, is_study);
     start_button.style.backgroundColor = PRIMARY_COLOR;
-    closeFullscreen();
   });
 
   select_mode.addEventListener("change", (event: Event) => {

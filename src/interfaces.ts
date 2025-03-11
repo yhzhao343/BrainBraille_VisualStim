@@ -4,6 +4,7 @@ export interface StartConfig {
   TR: "750ms" | "500ms" | "N.A.";
   start_delay_s: number;
   URSI: string;
+  tok?: string;
 }
 
 export interface SVGObjStyle {
@@ -76,4 +77,24 @@ export interface BBDictionary {
   y: number[];
 
   z: number[];
+}
+
+export enum BBStatusBits {
+  Study = 1,
+  Start = 2,
+  Update = 3,
+  End = 4,
+  Exit = 5,
+  TInt = 6,
+  TLen = 7,
+}
+
+export enum BBMode {
+  Practice = 0,
+  Study = 1,
+}
+
+export enum BBTIntType {
+  TR_3s = 0,
+  TR_1s5 = 1,
 }
