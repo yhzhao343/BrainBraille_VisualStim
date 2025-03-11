@@ -68,7 +68,12 @@ function ws_connect() {
   };
 
   socket.addEventListener("message", (event) => {
-    console.log(event);
+    if (event.data === "Another instance is connected!") {
+      reconnect_count = MAX_RECONNECT;
+      window.alert(
+        "Another instance is connected! Refresh page to take control if you must",
+      );
+    }
   });
 }
 setTimeout(ws_connect, 0);
@@ -960,7 +965,6 @@ export async function run_practice(
     url_params.get("mode") === "Study" ? BBMode.Study : BBMode.Practice;
   const interval =
     url_params.get("interval") === "3s" ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
-  console.log(url_params);
   send_event(0, 0, mode, BBStatusBits.Start, 0, false, interval, task_len);
   //Add canceling mechanism
   const on_key_down = (event: KeyboardEvent) => {
