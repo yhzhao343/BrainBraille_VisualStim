@@ -29,13 +29,13 @@ let reconnect_timeout: number;
 
 function ws_connect() {
   const params: URLSearchParams = new URLSearchParams(window.location.search);
-  const ursi = params.get("URSI");
+  const ursi = params.get("ursi");
   const tok = params.get("tok");
   let URL_URSI_list = [`${WS_URL}`];
   if (ursi || tok) {
     URL_URSI_list.push("?");
     if (ursi) {
-      URL_URSI_list.push(`URSI=${ursi}`);
+      URL_URSI_list.push(`ursi=${ursi}`);
       if (tok) {
         URL_URSI_list.push("&");
       }
@@ -109,7 +109,7 @@ export function getDefaultStartConfig(): StartConfig {
     interval: "3s",
     TR: "750ms",
     start_delay_s: 5,
-    URSI: "M00000000",
+    ursi: "M00000000",
   };
 }
 
@@ -524,9 +524,9 @@ export function start_config_from_url() {
     start_config.start_delay_s = parseFloat(params_start_delay_s);
   }
 
-  const URSI = params.get("URSI");
-  if (URSI) {
-    start_config.URSI = URSI;
+  const ursi = params.get("ursi");
+  if (ursi) {
+    start_config.ursi = ursi;
   }
 
   const tok = params.get("tok");
@@ -807,7 +807,7 @@ function send_event(
   task_interval: BBTIntType = BBTIntType.TR_3s,
   task_len = 0,
 ) {
-  if (!socket?.CLOSED) {
+  if (socket?.readyState === WebSocket.OPEN) {
     if (update_time) {
       ts_view[0] = now();
     }
@@ -819,7 +819,7 @@ function send_event(
       (task_len << BBStatusBits.TLen) |
       (task_interval << BBStatusBits.TInt);
     info_view[3] = fmri_frame_i;
-    socket?.send(update_info_payload);
+    socket.send(update_info_payload);
   }
 }
 
@@ -844,7 +844,6 @@ export async function run_study(
     url_params.get("mode") === "Study" ? BBMode.Study : BBMode.Practice;
   const interval =
     url_params.get("interval") === "3s" ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
-  send_event(0, 0, mode, BBStatusBits.Start, 0, false, interval, task_len);
   let curr_l_char: number = 0;
 
   const on_key_down = (event: KeyboardEvent) => {
@@ -965,7 +964,7 @@ export async function run_practice(
     url_params.get("mode") === "Study" ? BBMode.Study : BBMode.Practice;
   const interval =
     url_params.get("interval") === "3s" ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
-  send_event(0, 0, mode, BBStatusBits.Start, 0, false, interval, task_len);
+
   //Add canceling mechanism
   const on_key_down = (event: KeyboardEvent) => {
     ts_view[0] = now();
@@ -1153,7 +1152,7 @@ export function prepControlPanel(
   ursi_in.setAttribute("id", "ursi");
   ursi_input_form.appendChild(ursi_input_label);
   ursi_input_form.appendChild(ursi_in);
-  ursi_in.value = start_config.URSI;
+  ursi_in.value = start_config.ursi;
   bb_control_panel_div.appendChild(ursi_input_form);
 
   const select_mode_form = document.createElement("form");
@@ -1373,8 +1372,8 @@ export function prepControlPanel(
     });
     const stim_sequence = shuffle(STIM_PHASE_SET);
 
-    const default_stim_setting: StimTaskIntSetting =
-      start_config.interval === "3s" ? BB_3s : BB_1s5;
+    const is_3s = start_config.interval === "3s";
+    const default_stim_setting: StimTaskIntSetting = is_3s ? BB_3s : BB_1s5;
     const task_stim_setting: StimTaskIntSetting = {
       expected_task_interval_s: parseFloat(
         start_config.interval.substring(0, start_config.interval.length - 1),
@@ -1394,6 +1393,11 @@ export function prepControlPanel(
     const is_study = start_config.mode === "Study";
     const is_practice = start_config.mode === "Practice";
     ui_disable(true, is_study);
+
+    const mode = is_study ? BBMode.Study : BBMode.Practice;
+    const interval = is_3s ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
+    const task_len = task_info.curr_l_list.length;
+    send_event(0, 0, mode, BBStatusBits.Start, 0, false, interval, task_len);
 
     if (is_practice) {
       if (start_config.start_delay_s >= 0 && start_config.start_delay_s <= 30) {
@@ -1509,7 +1513,7 @@ export function prepControlPanel(
 
   ursi_in.addEventListener("change", (event: Event) => {
     if (event.type === "change") {
-      start_config.URSI = ursi_in.value ?? "";
+      start_config.ursi = ursi_in.value ?? "";
       validate_start_config(start_config);
       updateSearchURL(start_config);
     }

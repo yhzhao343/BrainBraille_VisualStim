@@ -3,7 +3,7 @@ export interface StartConfig {
   interval: "3s" | "1.5s";
   TR: "750ms" | "500ms" | "N.A.";
   start_delay_s: number;
-  URSI: string;
+  ursi: string;
   tok?: string;
 }
 
@@ -80,13 +80,13 @@ export interface BBDictionary {
 }
 
 export enum BBStatusBits {
-  Study = 1,
-  Start = 2,
-  Update = 3,
-  End = 4,
-  Exit = 5,
-  TInt = 6,
-  TLen = 7,
+  Study = 0,
+  Start = 1,
+  Update = 2,
+  End = 3,
+  Exit = 4,
+  TInt = 5,
+  TLen = 6,
 }
 
 export enum BBMode {
