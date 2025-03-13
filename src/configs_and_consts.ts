@@ -64,7 +64,6 @@ function ws_connect() {
 
   socket.onerror = (err) => {
     reconnect_count++;
-    // console.log(err);
   };
 
   socket.addEventListener("message", (event) => {
@@ -131,7 +130,7 @@ export function deepcopy(obj: Object) {
 
 export const BB_3s: StimTaskIntSetting = {
   expected_task_interval_s: 3,
-  expected_TR_s: 0.75,
+  expected_TR_s: 0.75, // This get over-written by the URL search param later
   front_space_padding_s: 6,
   back_space_padding_s: 12,
   num_space_between_words: 1,
@@ -140,7 +139,7 @@ export const BB_3s: StimTaskIntSetting = {
 
 export const BB_1s5: StimTaskIntSetting = {
   expected_task_interval_s: 1.5,
-  expected_TR_s: 0.75,
+  expected_TR_s: 0.75, // This get over-written by the URL search param later
   front_space_padding_s: 6,
   back_space_padding_s: 12,
   num_space_between_words: 2,
@@ -185,10 +184,10 @@ export function obj_to_style_str(obj: Object) {
   return str_list.join("");
 }
 
-function task_info_2_badusb(task_info) {
+function task_info_2_badusb(task_info: TaskInfo) {
   const num_ts = Math.round(
     (task_info.curr_l_list.length * task_info.expected_task_interval_s) /
-      task_info.expected_TR_s,
+    task_info.expected_TR_s,
   );
   let bad_usb_script =
     `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 500)}\n` +
@@ -202,7 +201,7 @@ export function generateTaskUpdateSequence(
 ): TaskInfo {
   const NUM_FRONT_SPACE = Math.ceil(
     task_settings.front_space_padding_s /
-      task_settings.expected_task_interval_s,
+    task_settings.expected_task_interval_s,
   );
   const NUM_BACK_SPACE = Math.ceil(
     task_settings.back_space_padding_s / task_settings.expected_task_interval_s,
