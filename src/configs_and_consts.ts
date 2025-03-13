@@ -191,7 +191,7 @@ function task_info_2_badusb(task_info) {
       task_info.expected_TR_s,
   );
   let bad_usb_script =
-    `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 1000)}\n` +
+    `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 500)}\n` +
     `STRING t\nREPEAT ${num_ts}\n`;
   console.log(bad_usb_script);
 }
