@@ -894,7 +894,7 @@ export async function run_study(
         curr_l_in_word_ind,
         `${i + 1}/${task_len}`,
       );
-      console.log(`${i}:${curr_l}`);
+      console.log(`${i}:${curr_l}:${now() / 1000}`);
       send_event(
         curr_l_char,
         i,
