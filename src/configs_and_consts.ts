@@ -231,7 +231,7 @@ export function generateTaskUpdateSequence(
       );
     }
     const num_extra_space =
-      task_settings.num_space_between_words -
+      task_settings.num_space_between_sents -
       task_settings.num_space_between_words;
     curr_l_list.push(...new Array(num_extra_space).fill("space"));
     curr_word_text_list.push(...new Array(num_extra_space).fill(""));
@@ -1370,6 +1370,7 @@ export function prepControlPanel(
       my_resolve = resolve;
     });
     const stim_sequence = shuffle(STIM_PHASE_SET);
+    // console.log(stim_sequence)
 
     const is_3s = start_config.interval === "3s";
     const default_stim_setting: StimTaskIntSetting = is_3s ? BB_3s : BB_1s5;
@@ -1389,6 +1390,7 @@ export function prepControlPanel(
       stim_sequence,
       task_stim_setting,
     );
+    // console.log(task_info)
     const is_study = start_config.mode === "Study";
     const is_practice = start_config.mode === "Practice";
     ui_disable(true, is_study);
