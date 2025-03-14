@@ -187,7 +187,7 @@ export function obj_to_style_str(obj: Object) {
 function task_info_2_badusb(task_info: TaskInfo) {
   const num_ts = Math.round(
     (task_info.curr_l_list.length * task_info.expected_task_interval_s) /
-    task_info.expected_TR_s,
+      task_info.expected_TR_s,
   );
   let bad_usb_script =
     `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 500)}\n` +
@@ -201,7 +201,7 @@ export function generateTaskUpdateSequence(
 ): TaskInfo {
   const NUM_FRONT_SPACE = Math.ceil(
     task_settings.front_space_padding_s /
-    task_settings.expected_task_interval_s,
+      task_settings.expected_task_interval_s,
   );
   const NUM_BACK_SPACE = Math.ceil(
     task_settings.back_space_padding_s / task_settings.expected_task_interval_s,
@@ -893,7 +893,9 @@ export async function run_study(
         curr_l_in_word_ind,
         `${i + 1}/${task_len}`,
       );
-      console.log(`${i}:${curr_l}:${now() / 1000}`);
+      console.log(
+        `${String(i).padStart(3, "0")}, ${curr_l.padStart(5, " ")}, ${(now() / 1000).toFixed(3)}`,
+      );
       send_event(
         curr_l_char,
         i,
@@ -1356,6 +1358,7 @@ export function prepControlPanel(
   bb_control_panel_div.appendChild(start_button);
 
   start_button.addEventListener("click", async () => {
+    ts_view[0] = now();
     clearInterval(reconnect_timeout);
     start_button.disabled = true;
     start_button.style.backgroundColor = PRIMARY_VARIANT_2_COLOR;
