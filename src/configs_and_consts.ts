@@ -191,7 +191,7 @@ function task_info_2_badusb(task_info: TaskInfo) {
   );
   let bad_usb_script =
     `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 500)}\n` +
-    `STRING t\nREPEAT ${num_ts}\n`;
+    `STRING t\nREPEAT ${num_ts - 1}\n`;
   console.log(bad_usb_script);
 }
 
@@ -873,7 +873,7 @@ export async function run_study(
 
   function update() {
     ts_view[0] = now();
-    if (i < task_len) {
+    if (i < task_len - 1) {
       const curr_l = task_info.curr_l_list[i];
       curr_l_char =
         curr_l === "space" ? " ".charCodeAt(0) : curr_l.charCodeAt(0);
@@ -894,7 +894,7 @@ export async function run_study(
         `${i + 1}/${task_len}`,
       );
       console.log(
-        `${String(i).padStart(3, "0")}, ${curr_l.padStart(5, " ")}, ${(now() / 1000).toFixed(3)}`,
+        `${String(i).padStart(3, "0")}, "${curr_l.length == 1 ? curr_l : " "}", ${(now() / 1000).toFixed(3)}`,
       );
       send_event(
         curr_l_char,
@@ -908,10 +908,12 @@ export async function run_study(
       );
       i++;
     } else {
-      document.removeEventListener("keydown", on_key_down);
-      document.removeEventListener("keypress", on_key_press);
-      my_resolve();
-      send_event(0, i, mode, BBStatusBits.End, 0, false, interval, task_len);
+      setTimeout(() => {
+        document.removeEventListener("keydown", on_key_down);
+        document.removeEventListener("keypress", on_key_press);
+        my_resolve();
+        send_event(0, i, mode, BBStatusBits.End, 0, false, interval, task_len);
+      }, task_info.expected_TR_s * 1000);
     }
   }
 
@@ -970,7 +972,10 @@ export async function run_practice(
   const on_key_down = (event: KeyboardEvent) => {
     ts_view[0] = now();
     if (event.key === "Escape") {
-      clearInterval(interval_id);
+      if (interval_id) {
+        reconnect_count = MAX_RECONNECT;
+        clearInterval(interval_id);
+      }
       document.removeEventListener("keydown", on_key_down);
       my_resolve();
       const curr_l_char = task_info.curr_l_list[i].charCodeAt(0);
@@ -1393,7 +1398,7 @@ export function prepControlPanel(
       stim_sequence,
       task_stim_setting,
     );
-    // console.log(task_info)
+    // console.log(task_info);
     const is_study = start_config.mode === "Study";
     const is_practice = start_config.mode === "Practice";
     ui_disable(true, is_study);
