@@ -77,6 +77,13 @@ function ws_connect() {
 }
 setTimeout(ws_connect, 0);
 
+function cancel_ws_reconnect() {
+  if (reconnect_timeout) {
+    clearTimeout(reconnect_timeout);
+    reconnect_count = 0;
+  }
+}
+
 export function openFullscreen() {
   let elem = document.documentElement;
   if (elem.requestFullscreen) {
@@ -185,13 +192,13 @@ export function obj_to_style_str(obj: Object) {
 }
 
 function task_info_2_badusb(task_info: TaskInfo) {
-  const num_ts = Math.round(
+  const num_frame = Math.round(
     (task_info.curr_l_list.length * task_info.expected_task_interval_s) /
       task_info.expected_TR_s,
   );
   let bad_usb_script =
     `DEFAULT_STRING_DELAY ${Math.round(task_info.expected_TR_s * 500)}\n` +
-    `STRING t\nREPEAT ${num_ts - 1}\n`;
+    `STRING t\nREPEAT ${num_frame - 1}\n`;
   console.log(bad_usb_script);
 }
 
@@ -844,6 +851,10 @@ export async function run_study(
   const interval =
     url_params.get("interval") === "3s" ? BBTIntType.TR_3s : BBTIntType.TR_1s5;
   let curr_l_char: number = 0;
+  const num_frame = Math.round(
+    (task_info.curr_l_list.length * task_info.expected_task_interval_s) /
+      task_info.expected_TR_s,
+  );
 
   const on_key_down = (event: KeyboardEvent) => {
     ts_view[0] = now();
@@ -867,13 +878,19 @@ export async function run_study(
   const num_frames_per_stim = Math.ceil(
     task_info.expected_task_interval_s / task_info.expected_TR_s,
   );
-  let frame_per_stim_i = 0;
+  let fmri_frame_num = 0;
 
   document.addEventListener("keypress", on_key_press);
 
+  function finish_run() {
+    document.removeEventListener("keydown", on_key_down);
+    document.removeEventListener("keypress", on_key_press);
+    my_resolve();
+    send_event(0, i, mode, BBStatusBits.End, 0, false, interval, task_len);
+  }
+
   function update() {
-    ts_view[0] = now();
-    if (i < task_len - 1) {
+    if (i < task_len) {
       const curr_l = task_info.curr_l_list[i];
       curr_l_char =
         curr_l === "space" ? " ".charCodeAt(0) : curr_l.charCodeAt(0);
@@ -894,7 +911,7 @@ export async function run_study(
         `${i + 1}/${task_len}`,
       );
       console.log(
-        `${String(i).padStart(3, "0")}, "${curr_l.length == 1 ? curr_l : " "}", ${(now() / 1000).toFixed(3)}`,
+        `${String(i).padStart(3, "0")}, "${curr_l.length == 1 ? curr_l : " "}", ${String(fmri_frame_num).padStart(3, "0")}, ${(ts_view[0] / 1000).toFixed(3)}`,
       );
       send_event(
         curr_l_char,
@@ -907,42 +924,38 @@ export async function run_study(
         task_len,
       );
       i++;
-    } else {
-      setTimeout(() => {
-        document.removeEventListener("keydown", on_key_down);
-        document.removeEventListener("keypress", on_key_press);
-        my_resolve();
-        send_event(0, i, mode, BBStatusBits.End, 0, false, interval, task_len);
-      }, task_info.expected_TR_s * 1000);
     }
   }
 
   function on_key_press(event: KeyboardEvent) {
     if (event.key === "t") {
-      if (frame_per_stim_i === 0) {
+      ts_view[0] = now();
+      if (fmri_frame_num % num_frames_per_stim === 0) {
         update();
-        frame_per_stim_i++;
       } else {
-        ts_view[0] = now();
         send_event(
           curr_l_char,
           i,
           mode,
           BBStatusBits.Update,
-          frame_per_stim_i,
+          fmri_frame_num,
           false,
           interval,
           task_len,
         );
-        frame_per_stim_i++;
-        if (frame_per_stim_i === num_frames_per_stim) {
-          frame_per_stim_i = 0;
-        }
+        console.log(
+          `   ,    , ${String(fmri_frame_num).padStart(3, "0")}, ${(ts_view[0] / 1000).toFixed(3)}`,
+        );
+      }
+      fmri_frame_num++;
+      if (fmri_frame_num === num_frame) {
+        setTimeout(finish_run, task_info.expected_TR_s * 1000);
       }
     }
   }
+
   update();
-  frame_per_stim_i++;
+  fmri_frame_num++;
   return my_promise;
 }
 
@@ -1364,7 +1377,7 @@ export function prepControlPanel(
 
   start_button.addEventListener("click", async () => {
     ts_view[0] = now();
-    clearInterval(reconnect_timeout);
+    cancel_ws_reconnect();
     start_button.disabled = true;
     start_button.style.backgroundColor = PRIMARY_VARIANT_2_COLOR;
     openFullscreen();
