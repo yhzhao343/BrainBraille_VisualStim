@@ -1,0 +1,33 @@
+import { BBDictionary, StartConfig, SVGObjStyle, TaskInfo, XYCoord } from "./interfaces";
+export declare function openFullscreen(): void;
+export declare function closeFullscreen(): void;
+export declare function getDefaultStartConfig(): StartConfig;
+export declare const CURR_BODY_SVG_STYLE: SVGObjStyle;
+export declare const NEXT_BODY_SVG_STYLE: SVGObjStyle;
+export declare function obj_to_style_str(obj: Object): string;
+export declare function get_id(prefix?: string): any;
+export declare class BrainBrailleStim {
+    container_div: HTMLElement;
+    curr_text: SVGTextElement;
+    next_text: SVGTextElement;
+    curr_word: SVGTextElement;
+    curr_index: SVGTextElement;
+    curr_l_in_word_ind: number;
+    curr_dots: (HTMLElement | null)[];
+    next_dots: (HTMLElement | null)[];
+    bb_dict: BBDictionary;
+    curr_text_fill: string;
+    next_text_fill: string;
+    constructor(container_div: HTMLElement, curr_text: SVGTextElement, next_text: SVGTextElement, curr_word: SVGTextElement, curr_index: SVGTextElement, curr_dots: (HTMLElement | null)[], next_dots: (HTMLElement | null)[], bb_dict?: BBDictionary, curr_text_fill?: string, next_text_fill?: string);
+    update(curr_l: string, next_l: string, curr_word_text: string, curr_l_in_word_ind: number, curr_index_str: string): void;
+}
+export declare function start_config_from_url(): StartConfig;
+export declare function genColorDefs(colors: string[], id_prefix: string, stop_opacity?: number, stop_offset?: number): string;
+export declare function getSvgGBody(prefix?: string): string;
+export declare function getSvgDot(id: string, cx: number, cy: number, r: number, fill: string): string;
+export declare function prepBrainBrailleStim(parentElement?: HTMLElement, doc?: Document, svg_width?: number, svg_height?: number, between_body_spacing?: number, body_svg_to_edge_spacing?: number, curr_body_svg_style?: SVGObjStyle, next_body_svg_style?: SVGObjStyle, dot_radius_ratio?: number, dot_coord?: XYCoord[]): BrainBrailleStim;
+export declare function delay(time_ms: number, callback?: Function | null): Promise<unknown>;
+export declare function run_study(stim_sequence: string[][], task_info: TaskInfo, brainbraille_stim: BrainBrailleStim): Promise<unknown>;
+export declare function run_practice(stim_sequence: string[][], task_info: TaskInfo, brainbraille_stim: BrainBrailleStim): Promise<unknown>;
+export declare function updateSearchURL(start_config: StartConfig): void;
+export declare function prepControlPanel(start_config: StartConfig, parentElement?: HTMLElement): void;

@@ -7,11 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npm run add-coi && node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=false' --servedir=src --watch --log-level=info",
     "build": "npm run add-coi && cp -r src/BrainBraille_VisualStim build/ && cp src/index.html build/ && cp src/style.css build/ && node build.js src/index.ts --bundle --sourcemap --define='window.IS_PRODUCTION=true' --outfile=build/index.js --minify --tree-shaking --log-level=silent",
-    "add-coi":"esbuild node_modules/coi-serviceworker/coi-serviceworker.js --minify --outfile=./src/coi-serviceworker.min.js && cp ./src/coi-serviceworker.min.js ./build/coi-serviceworker.min.js",
-    "clean": "rm -r build && mkdir build",
+    "add-coi": "esbuild node_modules/coi-serviceworker/coi-serviceworker.js --minify --outfile=./src/coi-serviceworker.min.js && cp ./src/coi-serviceworker.min.js ./build/coi-serviceworker.min.js",
+    "clean": "rm -rf build && mkdir build",
     "serve": "npx http-server build",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "build-cmd-tools": "esbuild --bundle cmd-tools/process_stim_seq.ts --outfile=cmd-tools-build/process_stim_seq.cjs --platform=node --format=cjs --target=node22.15 --external:jsdom --external:puppeteer && tsc --lib es2022 --target es2022 --declaration cmd-tools/process_stim_seq.ts --moduleResolution node --allowSyntheticDefaultImports --emitDeclarationOnly --outDir cmd-tools-build/",
+    "clean-cmd-tools": "rm -rf cmd-tools-build/*"
   },
   "type": "module",
   "repository": {
@@ -25,10 +27,16 @@
   },
   "homepage": "http://yhzhao343.github.io/brainbraille_visualstim",
   "devDependencies": {
-    "esbuild": "^0.25.0",
-    "gh-pages": "^6.1.1"
+    "esbuild": "^0.25.4",
+    "gh-pages": "^6.3.0"
   },
   "dependencies": {
-    "coi-serviceworker": "^0.1.7"
+    "@commander-js/extra-typings": "^14.0.0",
+    "@types/dom-to-image": "^2.6.7",
+    "@types/jsdom": "^21.1.7",
+    "coi-serviceworker": "^0.1.7",
+    "commander": "^14.0.0",
+    "jsdom": "^26.1.0",
+    "puppeteer": "^24.9.0"
   }
 }

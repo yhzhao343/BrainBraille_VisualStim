@@ -1,0 +1,18 @@
+import { StimTaskIntSetting } from "./interfaces";
+import { BBDictionary, XYCoord } from "./interfaces";
+export declare const MAX_RECONNECT = 5;
+export declare function now(): number;
+export declare function deepcopy(obj: Object): any;
+export declare let STIM_PHASE_SET: string[][];
+export declare const SVG_WIDTH = 360;
+export declare const SVG_HEIGHT = 400;
+export declare const BETWEEN_BODY_SPACING = 8;
+export declare const BODY_SVG_TO_EDGE_SPACING = 6;
+export declare const DOT_RADIUS_RATIO: number;
+export declare const DOT_COORD: XYCoord[];
+export declare const DOT_COLORS: string[];
+export declare const BB_3s: StimTaskIntSetting;
+export declare const BB_1s5: StimTaskIntSetting;
+export declare const default_braille_dictionary: BBDictionary;
+export declare const default_braille_moded_dictionary: BBDictionary;
+export declare const final_BrainBraille_dictionary: BBDictionary;

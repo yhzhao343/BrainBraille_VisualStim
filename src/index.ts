@@ -1,5 +1,7 @@
-import { prepControlPanel, start_config_from_url } from "./configs_and_consts";
+import { prepControlPanel, start_config_from_url } from "./svg_manager";
+import { ws_connect } from "./comm";
 
+setTimeout(ws_connect, 0);
 prepControlPanel(start_config_from_url());
 
 /******************************************************************************
