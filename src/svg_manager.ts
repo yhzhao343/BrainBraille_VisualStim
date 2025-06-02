@@ -32,6 +32,7 @@ import {
   generateTaskUpdateSequence,
   task_info_2_badusb,
   shuffle,
+  download,
 } from "./brainbraille_task_prep";
 
 import {
@@ -47,6 +48,9 @@ import {
   set_reconnect_count,
   cancel_ws_reconnect,
 } from "./comm";
+
+let study_log_list: string[] = [];
+let curr_start_config: StartConfig;
 
 export function openFullscreen() {
   let elem = document.documentElement;
@@ -494,6 +498,7 @@ export async function run_study(
   brainbraille_stim: BrainBrailleStim,
 ) {
   update_ts_view_ts(now());
+  study_log_list = [];
   const task_len = task_info.curr_l_list.length;
   let i = 0;
   let my_resolve: Function;
@@ -569,9 +574,9 @@ export async function run_study(
         curr_l_in_word_ind,
         `${i + 1}/${task_len}`,
       );
-      console.log(
-        `${String(i).padStart(3, "0")}, "${curr_l.length == 1 ? curr_l : " "}", ${String(fmri_frame_num).padStart(3, "0")}, ${(get_ts_view_ts() / 1000).toFixed(3)}`,
-      );
+      const log_str = `${String(i).padStart(3, "0")}, "${curr_l.length == 1 ? curr_l : " "}", ${String(fmri_frame_num).padStart(3, "0")}, ${(get_ts_view_ts() / 1000).toFixed(3)}`;
+      study_log_list.push(log_str);
+      console.log(log_str);
       send_event(
         curr_l_char,
         i,
@@ -602,13 +607,23 @@ export async function run_study(
           interval,
           task_len,
         );
-        console.log(
-          `   ,    , ${String(fmri_frame_num).padStart(3, "0")}, ${(get_ts_view_ts() / 1000).toFixed(3)}`,
-        );
+        const log_str = `   ,    , ${String(fmri_frame_num).padStart(3, "0")}, ${(get_ts_view_ts() / 1000).toFixed(3)}`;
+        study_log_list.push(log_str);
+        console.log(log_str);
       }
       fmri_frame_num++;
       if (fmri_frame_num === num_frame) {
         setTimeout(finish_run, task_info.expected_TR_s * 1000);
+        setTimeout(
+          () => {
+            download(
+              study_log_list.join("\n"),
+              "text/csv",
+              `${Math.round(get_ts_view_ts())}_${curr_start_config.ursi}_${curr_start_config.interval}_${curr_start_config.TR}.csv`,
+            );
+          },
+          task_info.expected_TR_s * 1000 + 1,
+        );
       }
     }
   }
@@ -960,7 +975,7 @@ export function prepControlPanel(
 
   // Change options for other input based on mode
   function onModeChange() {
-    if (start_config.mode == "Practice") {
+    if (start_config.mode === "Practice") {
       select_TR.disabled = true;
       start_config.TR = "N.A.";
       if (select_TR.contains(option_500ms)) {
@@ -978,7 +993,7 @@ export function prepControlPanel(
         start_config.start_delay_s.toString(),
       );
       input_delay_s.value = start_config.start_delay_s.toString();
-    } else if (start_config.mode == "Study") {
+    } else if (start_config.mode === "Study") {
       select_TR.disabled = false;
       if (select_TR.contains(option_na)) {
         select_TR.removeChild(option_na);
@@ -1110,7 +1125,17 @@ export function prepControlPanel(
       }
       await delay_promise;
     } else if (is_study) {
+      // const start_time = Date.now();
       task_info_2_badusb(task_info);
+      curr_start_config = start_config;
+      const stimuli_txt_export: string = task_info.curr_l_list
+        .map((l) => (l === "space" ? " " : l))
+        .join("");
+      download(
+        stimuli_txt_export,
+        "text/plain",
+        `${Math.round(get_ts_view_ts())}_${start_config.ursi}_${start_config.interval}_${start_config.TR}.txt`,
+      );
       info_panel.innerHTML = "Waiting for fMRI to start!";
       document.addEventListener("keypress", on_key_press);
       document.addEventListener("keydown", on_key_down);

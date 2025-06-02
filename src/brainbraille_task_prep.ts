@@ -85,3 +85,12 @@ export function task_info_2_badusb(task_info: TaskInfo) {
     `STRING t\nREPEAT ${num_frame - 1}\n`;
   console.log(bad_usb_script);
 }
+
+export function download(content: string, mimeType, filename: string) {
+  const a = document.createElement("a"); // Create "a" element
+  const blob = new Blob([content], { type: mimeType }); // Create a blob (file-like object)
+  const url = URL.createObjectURL(blob); // Create an object URL from blob
+  a.setAttribute("href", url); // Set "a" element link
+  a.setAttribute("download", filename); // Set download filename
+  a.click(); // Start downloading
+}
