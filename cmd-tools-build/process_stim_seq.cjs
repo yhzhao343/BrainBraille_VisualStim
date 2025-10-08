@@ -3878,7 +3878,18 @@ var import_fs = require("fs");
 var import_jsdom = require("jsdom");
 var path = __toESM(require("node:path"), 1);
 var import_puppeteer = __toESM(require("puppeteer"), 1);
+var VIEWPORT_WIDTH = 1920;
+var VIEWPORT_HEIGHT = 1080;
 var program2 = new Command();
+async function renderToImage(html, width = VIEWPORT_WIDTH, height = VIEWPORT_HEIGHT) {
+  const browser = await import_puppeteer.default.launch();
+  const page = await browser.newPage();
+  await page.setViewport({ width, height });
+  await page.setContent(html);
+  const imageBuffer = await page.screenshot({});
+  await browser.close();
+  return imageBuffer;
+}
 var cwd = process.cwd();
 program2.name("process_stim").description(
   "CLI tool to turn BrainBraille text stimuli or json event file to "
@@ -3886,12 +3897,23 @@ program2.name("process_stim").description(
 program2.command("process_text").description(
   "Take stimuli texts and export to stimuli images and event json files"
 ).argument("<text_file_path>", "path to the text file containing the stimuli").option("--input_interval  <number>", "time(s) per letter stimuli", "3").option("--TR  <number>", "Time(ms) between fMRI frames", "750").option("--outDir  <string>", "output directory", "").action(async (file_path, options) => {
+  const stim_task_setting = parseFloat(options.input_interval).toFixed(1) === "3.0" ? BB_3s : BB_1s5;
+  const word_delim = " ".repeat(stim_task_setting.num_space_between_words);
+  const sent_delim = " ".repeat(stim_task_setting.num_space_between_sents);
   const text_content_buffer = (0, import_fs.readFileSync)(file_path);
   let text = text_content_buffer.toString("utf8");
+  let stim_seq;
+  let stim_sents;
   text = text.trim();
-  const stim_sents = text.split("\n");
+  if (text.includes("\n")) {
+    stim_sents = text.split("\n");
+    stim_seq = stim_sents.map((s) => s.split(" "));
+  } else {
+    stim_sents = text.split(sent_delim);
+    stim_seq = stim_sents.map((s) => s.split(word_delim));
+    stim_sents = stim_sents.map((s) => s.replaceAll(word_delim, " "));
+  }
   const stimuli_json_text_export = JSON.stringify(stim_sents);
-  const stim_seq = stim_sents.map((s) => s.split(" "));
   if (!options.outDir) {
     const text_input_full_path = path.resolve(file_path);
     const parsed_path = path.parse(text_input_full_path);
@@ -3900,16 +3922,13 @@ program2.command("process_text").description(
   if (!(0, import_fs.existsSync)(options.outDir)) {
     (0, import_fs.mkdirSync)(options.outDir);
   }
-  const stim_task_setting = parseFloat(options.input_interval).toFixed(1) === "3.0" ? BB_3s : BB_1s5;
   if (options.TR !== void 0) {
     stim_task_setting.expected_TR_s = parseFloat(options.TR);
   }
-  console.log(stim_task_setting);
   const task_info = generateTaskUpdateSequence(
     stim_seq,
     stim_task_setting
   );
-  console.log(task_info);
   const stimuli_txt_export = task_info.curr_l_list.map((l) => l === "space" ? " " : l).join("");
   const dom = new import_jsdom.JSDOM(
     `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"></head><body><div id="svg_container" style="width:100%;height:100%"></div></body></html>`
@@ -3924,6 +3943,35 @@ program2.command("process_text").description(
     return;
   }
   const brainbraille_stim = prepBrainBrailleStim(svg_parent, document2);
+  let i = 0;
+  while (i < task_info.curr_l_list.length) {
+    console.log(
+      `Generating image for task ${i + 1} out of ${task_info.curr_l_list.length}`
+    );
+    const curr_l = task_info.curr_l_list[i];
+    const curr_l_char = curr_l === "space" ? " ".charCodeAt(0) : curr_l.charCodeAt(0);
+    const word_info = task_info.curr_word_text_list[i];
+    let curr_word_text;
+    if (word_info.phrase_n > -1) {
+      curr_word_text = stim_seq[word_info.phrase_n][word_info.word_n];
+    } else {
+      curr_word_text = "";
+    }
+    const next_l = task_info.next_l_list[i];
+    const curr_l_in_word_ind = task_info.curr_l_in_word_ind_list[i];
+    brainbraille_stim.update(
+      curr_l,
+      next_l,
+      curr_word_text,
+      curr_l_in_word_ind,
+      `${i + 1}/${task_info.curr_l_list.length}`
+    );
+    (0, import_fs.writeFileSync)(
+      `${options.outDir}/test_braille_${String(i + 1).padStart(3, "0")}.png`,
+      await renderToImage(document2.documentElement.outerHTML)
+    );
+    i++;
+  }
   (0, import_fs.writeFileSync)(`${options.outDir}/stimuli.txt`, stimuli_txt_export);
   (0, import_fs.writeFileSync)(`${options.outDir}/stimuli.json`, stimuli_json_text_export);
 });

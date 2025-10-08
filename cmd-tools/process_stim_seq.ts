@@ -46,12 +46,26 @@ program
   .option("--TR  <number>", "Time(ms) between fMRI frames", "750")
   .option("--outDir  <string>", "output directory", "")
   .action(async (file_path, options) => {
+    const stim_task_setting: StimTaskIntSetting =
+      parseFloat(options.input_interval).toFixed(1) === "3.0" ? BB_3s : BB_1s5;
+    const word_delim = " ".repeat(stim_task_setting.num_space_between_words);
+    const sent_delim = " ".repeat(stim_task_setting.num_space_between_sents);
+
     const text_content_buffer = readFileSync(file_path);
+
     let text = text_content_buffer.toString("utf8");
+    let stim_seq: string[][];
+    let stim_sents: string[];
     text = text.trim();
-    const stim_sents: string[] = text.split("\n");
+    if (text.includes("\n")) {
+      stim_sents = text.split("\n");
+      stim_seq = stim_sents.map((s) => s.split(" "));
+    } else {
+      stim_sents = text.split(sent_delim);
+      stim_seq = stim_sents.map((s) => s.split(word_delim));
+      stim_sents = stim_sents.map((s) => s.replaceAll(word_delim, " "));
+    }
     const stimuli_json_text_export = JSON.stringify(stim_sents);
-    const stim_seq: string[][] = stim_sents.map((s) => s.split(" "));
 
     if (!options.outDir) {
       const text_input_full_path: string = path.resolve(file_path);
@@ -63,8 +77,6 @@ program
       mkdirSync(options.outDir);
     }
     // console.log(options);
-    const stim_task_setting: StimTaskIntSetting =
-      parseFloat(options.input_interval).toFixed(1) === "3.0" ? BB_3s : BB_1s5;
 
     if (options.TR !== undefined) {
       stim_task_setting.expected_TR_s = parseFloat(options.TR);
