@@ -5,7 +5,11 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -93,7 +97,7 @@ var require_argument = __commonJS({
             this._name = name;
             break;
         }
-        if (this._name.length > 3 && this._name.slice(-3) === "...") {
+        if (this._name.endsWith("...")) {
           this.variadic = true;
           this._name = this._name.slice(0, -3);
         }
@@ -109,11 +113,12 @@ var require_argument = __commonJS({
       /**
        * @package
        */
-      _concatValue(value, previous) {
+      _collectValue(value, previous) {
         if (previous === this.defaultValue || !Array.isArray(previous)) {
           return [value];
         }
-        return previous.concat(value);
+        previous.push(value);
+        return previous;
       }
       /**
        * Set the default value, and optionally supply the description to be displayed in the help.
@@ -152,7 +157,7 @@ var require_argument = __commonJS({
             );
           }
           if (this.variadic) {
-            return this._concatValue(arg, previous);
+            return this._collectValue(arg, previous);
           }
           return arg;
         };
@@ -933,11 +938,12 @@ var require_option = __commonJS({
       /**
        * @package
        */
-      _concatValue(value, previous) {
+      _collectValue(value, previous) {
         if (previous === this.defaultValue || !Array.isArray(previous)) {
           return [value];
         }
-        return previous.concat(value);
+        previous.push(value);
+        return previous;
       }
       /**
        * Only allow option value to be one of choices.
@@ -954,7 +960,7 @@ var require_option = __commonJS({
             );
           }
           if (this.variadic) {
-            return this._concatValue(arg, previous);
+            return this._collectValue(arg, previous);
           }
           return arg;
         };
@@ -1390,11 +1396,10 @@ var require_command = __commonJS({
        */
       configureOutput(configuration) {
         if (configuration === void 0) return this._outputConfiguration;
-        this._outputConfiguration = Object.assign(
-          {},
-          this._outputConfiguration,
-          configuration
-        );
+        this._outputConfiguration = {
+          ...this._outputConfiguration,
+          ...configuration
+        };
         return this;
       }
       /**
@@ -1504,7 +1509,7 @@ var require_command = __commonJS({
        */
       addArgument(argument) {
         const previousArgument = this.registeredArguments.slice(-1)[0];
-        if (previousArgument && previousArgument.variadic) {
+        if (previousArgument?.variadic) {
           throw new Error(
             `only the last argument can be variadic '${previousArgument.name()}'`
           );
@@ -1770,7 +1775,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
           if (val !== null && option.parseArg) {
             val = this._callParseArg(option, val, oldValue, invalidValueMessage);
           } else if (val !== null && option.variadic) {
-            val = option._concatValue(val, oldValue);
+            val = option._collectValue(val, oldValue);
           }
           if (val == null) {
             if (option.negate) {
@@ -2422,7 +2427,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @private
        */
       _chainOrCall(promise, fn) {
-        if (promise && promise.then && typeof promise.then === "function") {
+        if (promise?.then && typeof promise.then === "function") {
           return promise.then(() => fn());
         }
         return fn();
@@ -2527,7 +2532,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
           promiseChain = this._chainOrCallHooks(promiseChain, "postAction");
           return promiseChain;
         }
-        if (this.parent && this.parent.listenerCount(commandEvent)) {
+        if (this.parent?.listenerCount(commandEvent)) {
           checkForUnknownOptions();
           this._processArguments();
           this.parent.emit(commandEvent, operands, unknown);
@@ -2638,29 +2643,31 @@ Expecting one of '${allowedValues.join("', '")}'`);
        *     sub --unknown uuu op => [sub], [--unknown uuu op]
        *     sub -- --unknown uuu op => [sub --unknown uuu op], []
        *
-       * @param {string[]} argv
+       * @param {string[]} args
        * @return {{operands: string[], unknown: string[]}}
        */
-      parseOptions(argv) {
+      parseOptions(args) {
         const operands = [];
         const unknown = [];
         let dest = operands;
-        const args = argv.slice();
         function maybeOption(arg) {
           return arg.length > 1 && arg[0] === "-";
         }
         const negativeNumberArg = (arg) => {
-          if (!/^-\d*\.?\d+(e[+-]?\d+)?$/.test(arg)) return false;
+          if (!/^-(\d+|\d*\.\d+)(e[+-]?\d+)?$/.test(arg)) return false;
           return !this._getCommandAndAncestors().some(
             (cmd) => cmd.options.map((opt) => opt.short).some((short) => /^-\d$/.test(short))
           );
         };
         let activeVariadicOption = null;
-        while (args.length) {
-          const arg = args.shift();
+        let activeGroup = null;
+        let i = 0;
+        while (i < args.length || activeGroup) {
+          const arg = activeGroup ?? args[i++];
+          activeGroup = null;
           if (arg === "--") {
             if (dest === unknown) dest.push(arg);
-            dest.push(...args);
+            dest.push(...args.slice(i));
             break;
           }
           if (activeVariadicOption && (!maybeOption(arg) || negativeNumberArg(arg))) {
@@ -2672,13 +2679,13 @@ Expecting one of '${allowedValues.join("', '")}'`);
             const option = this._findOption(arg);
             if (option) {
               if (option.required) {
-                const value = args.shift();
+                const value = args[i++];
                 if (value === void 0) this.optionMissingArgument(option);
                 this.emit(`option:${option.name()}`, value);
               } else if (option.optional) {
                 let value = null;
-                if (args.length > 0 && (!maybeOption(args[0]) || negativeNumberArg(args[0]))) {
-                  value = args.shift();
+                if (i < args.length && (!maybeOption(args[i]) || negativeNumberArg(args[i]))) {
+                  value = args[i++];
                 }
                 this.emit(`option:${option.name()}`, value);
               } else {
@@ -2695,7 +2702,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
                 this.emit(`option:${option.name()}`, arg.slice(2));
               } else {
                 this.emit(`option:${option.name()}`);
-                args.unshift(`-${arg.slice(2)}`);
+                activeGroup = `-${arg.slice(2)}`;
               }
               continue;
             }
@@ -2714,21 +2721,18 @@ Expecting one of '${allowedValues.join("', '")}'`);
           if ((this._enablePositionalOptions || this._passThroughOptions) && operands.length === 0 && unknown.length === 0) {
             if (this._findCommand(arg)) {
               operands.push(arg);
-              if (args.length > 0) unknown.push(...args);
+              unknown.push(...args.slice(i));
               break;
             } else if (this._getHelpCommand() && arg === this._getHelpCommand().name()) {
-              operands.push(arg);
-              if (args.length > 0) operands.push(...args);
+              operands.push(arg, ...args.slice(i));
               break;
             } else if (this._defaultCommandName) {
-              unknown.push(arg);
-              if (args.length > 0) unknown.push(...args);
+              unknown.push(arg, ...args.slice(i));
               break;
             }
           }
           if (this._passThroughOptions) {
-            dest.push(arg);
-            if (args.length > 0) dest.push(...args);
+            dest.push(arg, ...args.slice(i));
             break;
           }
           dest.push(arg);
